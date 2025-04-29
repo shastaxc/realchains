@@ -44,6 +44,7 @@ default.UpdateFrequency = 0.2
 default.aeonic = false
 default.color = false
 default.display = {text={size=12,font='Consolas'},pos={x=0,y=0},bg={visible=true}}
+default.zeroed = true
 
 settings = config.load(default)
 skill_props = texts.new('',settings.display,settings)
@@ -138,7 +139,7 @@ initialize = function(text, settings)
         properties:append('${timer}')
     end
     if settings.Show.step[info.job] then
-        properties:append('Step: ${step} → ${name}')
+        properties:append('Step: ${step_display} → ${name}')
     end
     if settings.Show.props[info.job] then
         properties:append('[${props}] ${elements}')
@@ -327,6 +328,7 @@ function apply_properties(target, resource, action_id, properties, delay, step, 
         delay=clock+delay,
         times=clock+delay+math.max(8-step,1),
         step=step,
+        step_display=step - 1 + (settings.zeroed and 0 or 1),
         closed=closed,
         bound=bound
     }
@@ -435,7 +437,7 @@ windower.register_event('addon command', function(cmd, ...)
     elseif cmd == 'eval' then
         assert(loadstring(table.concat({...}, ' ')))()
     else
-        windower.add_to_chat(207, '%s: valid commands [save | move | burst | weapon | spell | pet | props | step | timer | color | aeonic]':format(_addon.name))
+        windower.add_to_chat(207, '%s: valid commands [save | move | burst | weapon | spell | pet | props | step | timer | color | aeonic | zeroed]':format(_addon.name))
     end
 end)
 
