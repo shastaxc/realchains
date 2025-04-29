@@ -325,7 +325,7 @@ function apply_properties(target, resource, action_id, properties, delay, step, 
         id=action_id,
         active=properties,
         delay=clock+delay,
-        times=clock+delay+8-step,
+        times=clock+delay+math.max(8-step,1),
         step=step,
         closed=closed,
         bound=bound
@@ -363,7 +363,7 @@ function action_handler(act)
             level = check_props(reson.active, aeonic_prop(ability, actor))
         end
 
-        local closed = step > 5 or level == 4
+        local closed = step > 10 or level == 4
 
         apply_properties(target.id, resource, action_id, {skillchain}, delay, step, closed)
     elseif ability and (message_ids:contains(message_id) or message_id == 2 and buffs[actor] and chain_buff(buffs[actor])) then
