@@ -175,8 +175,13 @@ function aeonic_am(step)
     return false
 end
 
-function aeonic_prop(ability, actor)
-    if ability.aeonic and (ability.weapon == info.aeonic and actor == info.player or settings.aeonic and info.player ~= actor) then
+-- Optional is_opener specifies if this WS opened a SC. Aeonic properties do not apply to opening WS unless player already has AM.
+function aeonic_prop(ability, actor, is_opener)
+    if is_opener then
+      if ability.aeonic and (ability.weapon == info.aeonic and actor == info.player and aeonic_am(10) or settings.aeonic and info.player ~= actor) then
+          return {ability.skillchain[1], ability.skillchain[2], ability.aeonic}
+      end
+    elseif ability.aeonic and (ability.weapon == info.aeonic and actor == info.player or settings.aeonic and info.player ~= actor) then
         return {ability.skillchain[1], ability.skillchain[2], ability.aeonic}
     end
     return ability.skillchain
@@ -301,6 +306,7 @@ function check_buff(t, i)
     t[i] = nil
 end
 
+-- Check if actor has Azure Lore, Chain Affinity, or Immanence active
 function chain_buff(t)
     local i = t[164] and 164 or t[470] and 470
     if i and check_buff(t, i) then
@@ -354,6 +360,7 @@ function action_handler(act)
     local param, resource, action_id, interruption, conclusion = action:get_spell()
     local ability = skills[resource] and skills[resource][action_id]
 
+    -- If a skillchain was made, set properties based on the effect
     if add_effect and conclusion and skillchain_ids:contains(add_effect.message_id) then
         local skillchain = add_effect.animation:ucfirst()
         local level = sc_info[skillchain].lvl
@@ -361,18 +368,22 @@ function action_handler(act)
         local delay = ability and ability.delay or 3
         local step = (reson and reson.step or 1) + 1
 
+        -- Determine if effect was lv 4 due to Aeonic
         if level == 3 and reson and ability then
             level = check_props(reson.active, aeonic_prop(ability, actor))
         end
 
-        -- local closed = step > 10 or level == 4
+        -- Consider SC closed if it was a lv 4 SC
         local closed = level == 4
 
         apply_properties(target.id, resource, action_id, {skillchain}, delay, step, closed)
+    -- No skillchain was made, set properties to show SC options
     elseif ability and (message_ids:contains(message_id) or message_id == 2 and buffs[actor] and chain_buff(buffs[actor])) then
-        apply_properties(target.id, resource, action_id, aeonic_prop(ability, actor), ability.delay or 3, 1)
+        apply_properties(target.id, resource, action_id, aeonic_prop(ability, actor, true) or ability.skillchain, ability.delay or 3, 1)
+    -- Chainbound was applied, set properties to show SC options
     elseif message_id == 529 then
         apply_properties(target.id, resource, action_id, chainbound[param], 2, 1, false, param)
+    -- Track AM buffs
     elseif message_id == 100 and buff_dur[param] then
         buffs[actor] = buffs[actor] or {}
         buffs[actor][param] = buff_dur[param] + os.time()
@@ -382,16 +393,19 @@ end
 ActionPacket.open_listener(action_handler)
 
 windower.register_event('incoming chunk', function(id, data)
+    -- Action Message
     if id == 0x29 and data:unpack('H', 25) == 206 and data:unpack('I', 9) == info.player then
         buffs[info.player][data:unpack('H', 13)] = nil
     elseif id == 0x50 and data:byte(6) == 0 then
         info.main_weapon = data:byte(5)
         info.main_bag = data:byte(7)
         update_weapon()
+    -- Equip
     elseif id == 0x50 and data:byte(6) == 2 then
         info.range = data:byte(5)
         info.range_bag = data:byte(7)
         update_weapon()
+    -- Set Update
     elseif id == 0x63 and data:byte(5) == 9 then
         local set_buff = {}
         for n=1,32 do
